@@ -5,49 +5,60 @@ import Notiflix from 'notiflix';
 const DEBOUNCE_DELAY = 300;
 
 const refs = {
-  input: document.querySelector('#search-box'),
-  countryList: document.querySelector('.country-list'),
-  countryCard: document.querySelector('.country-info'),
+  cardContainer: document.querySelector('.country-info'),
+  countriesList: document.querySelector('#search-box'),
+  country: document.querySelector('.country-list'),
 };
-refs.input.addEventListener(
+refs.countriesList.addEventListener(
   'input',
-  debounce(getEnteredCountryName, DEBOUNCE_DELAY)
+  debounce(onSearch, DEBOUNCE_DELAY)
 );
-
-function getEnteredCountryName(e) {
-  let countryName = e.target.value.trim();
-  if (!countryName.length) {
-    clearRenderMarkup();
-    return;
-  }
-
-  fetchCountries(countryName).then(renderCountriesMarkup).catch(onFetchError);
+function onSearch(e) {
+  const search = e.target.value.trim();
+  if (search === " ") {
+    refs.cardContainer = " ";
+    refs.country =" ";
+   };
+  addMarkup();
+  fetchCountries(search)
+    .then(response => {
+      const length = response.length;
+if (length === 1) {
+        const markup = createMarkupCountry(response);
+        addMarkup(markup);
+      } else if (length > 1 && length <= 10) {
+        const markup = createMarkupListCountry(response);
+        addMarkup('', markup);
+      } else {
+        e.target.removeEventListener('input', debounce(onSearch, DEBOUNCE_DELAY));
+        Notiflix.Notify.info('Too many matches found. Please enter a more specific name.');
+      }
+    })
+    .catch(error => {
+      Notiflix.Notify.failure('Oops, there is no country with that name');
+      return error;
+    });
 }
-
-function renderCountriesMarkup(countries = {}) {
-  if (countries.length > 10) {
-    clearRenderMarkup();
-    Notiflix.Notify.info(
-      'Too many matches found. Please enter a more specific name.'
-    );
-    return;
-  } else if (countries.length === 1) {
-    let markup = countryTempl(...countries);
-    refs.countryList.innerHTML = '';
-    refs.countryCard.innerHTML = markup;
-  } else if (countries.length > 1 && countries.length < 10) {
-    let markup = countriesTempl(countries);
-    refs.countryCard.innerHTML = '';
-    refs.countryList.innerHTML = markup;
-  }
+function addMarkup(cm = '', clm = '') {
+  refs.cardContainer.innerHTML = cm;
+  refs.country.innerHTML = clm;
 }
-
-function clearRenderMarkup() {
-  refs.countryList.innerHTML = '';
-  refs.countryCard.innerHTML = '';
+function createMarkupCountry(data = []) {
+  return data
+    .map(({ flags, name, capital, population, languages }) => {
+      return `<div> <div class="country"><img src="${flags.svg}" style="width:50px">
+    <h1>${name.official}</h1></div>
+     <p><b>Capital:</b> ${capital}</p>
+     <p><b>Population:</b> ${population}</p>
+      <p><b>Languages:</b> ${Object.values(languages)[0]}</p></div>`;
+    })
+    .join('');
 }
-
-function onFetchError() {
-  clearRenderMarkup();
-  Notiflix.Notify.failure('Oops, there is no country with that name');
+function createMarkupListCountry(data = []) {
+  return data
+    .map(({ flags, name }) => {
+      return `<div class="container-js"><img src="${flags.svg}" style="width:5vw">
+      <h1>${name.official}</h1></div>`;
+    })
+    .join('');
 }
